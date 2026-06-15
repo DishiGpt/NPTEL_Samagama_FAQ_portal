@@ -43,9 +43,9 @@ https://drive.google.com/file/d/1mr4TfA0GNu_sOrY3HePQdcapf6Emra83/view?usp=drive
 
 When building AskSam, we focused heavily on enterprise-grade reliability and frictionless User Experience (UX):
 
-1. **High-Availability Offline Fallback**: We engineered the NestJS backend to be fault-tolerant. If the primary MongoDB cluster ever goes down, the system gracefully falls back to a read-only `faqData.json` file. The app survives crashes that would normally take down standard student projects.
-2. **Zero-Friction State Persistence (Auth Gates)**: If an unauthenticated user types a detailed question and tries to submit, they aren't aggressively redirected. Instead, a smooth modal overlays the screen, allows them to log in or sign up, and *immediately* posts their saved query upon success without losing a single keystroke.
-3. **Self-Correcting Data Lifecycle**: Answers aren't just posted into the void. They enter a peer-review queue, get answered, and must be explicitly **verified** by an admin to elevate into a Canonical FAQ. If an answer is found to be incorrect later, the community can flag it, invoking our `reopenReason` flow to push it back into the queue for correction.
+1. **High-Availability Offline Fallback**: We engineered the NestJS backend to be fault-tolerant. If the primary MongoDB cluster ever goes down, the system gracefully falls back to a read-only `faqData.json` file. The app survives database connection crashes that would normally take down standard student projects.
+2. **Predictive Search & Duplicate Deflection**: The platform uses client-side fuzzy search (Fuse.js) for predictive search and real-time duplicate checking when composing questions to proactively deflect duplicate submissions before they enter the database.
+3. **Admin Moderation & Promotion Workflows**: A clean, structured lifecycle where peer answers must be explicitly verified by administrators to be elevated to canonical FAQs. Admins can also reopen questions to send them back to the active queue for peer correction.
 4. **Performance-First Animations**: We achieved beautiful, fluid UI micro-animations (fade-ins, slide-ups, pulse-glows) natively using CSS keyframes in Tailwind v4, entirely avoiding heavy JavaScript animation libraries that bloat the client bundle.
 
 ---
@@ -55,11 +55,10 @@ When building AskSam, we focused heavily on enterprise-grade reliability and fri
 AskSam was designed with a massive suite of features tailored for a perfect academic Q&A experience. Here is an exhaustive list of every feature currently running in the platform:
 
 ### 🔐 Authentication & Security
-* **JWT-Based Authentication:** Secure, stateless login sessions utilizing HTTP-only cookies and Bearer tokens.
-* **Role-Based Access Control (RBAC):** Strict NestJS Guards differentiating privileges between standard `Users` and `Admins`.
+* **JWT-Based Authentication:** Secure, stateless login sessions utilizing JWT tokens stored in localStorage.
+* **Role-Based Access Control (RBAC):** Strict NestJS Guards differentiating privileges between standard `Students` and `Admins`.
 * **API Rate Limiting:** Built-in throttler protecting authentication and critical endpoints from spam.
 * **Bcrypt Password Encryption:** Hashing all user credentials before database storage.
-* **Frictionless Auth Flow:** An interactive modal that preserves users' typed text if they attempt to submit a question while logged out.
 
 ### 🔍 Search & Discovery
 * **Predictive Smart Search:** Real-time dropdown search suggestions that query the database as the user types.
@@ -70,12 +69,12 @@ AskSam was designed with a massive suite of features tailored for a perfect acad
 * **Rich-Text Formatting:** React Quill editor integration allowing bolding, italics, code blocks, and list formatting.
 * **Media Embedding:** Support for pasting external image URLs directly into questions and answers for visual context.
 * **Community Voting System:** Upvote and downvote mechanics to organically push the highest quality answers to the top.
-* **Live Deflection Panel:** A sidebar that detects question similarities while typing to proactively stop duplicate submissions.
+* **Real-time Duplicate Checker:** Inline warning card that detects question similarities while typing on the Ask page to prevent duplicate submissions.
 
 ### ⚖️ Moderation & Workflow (The Data Lifecycle)
 * **Oldest-First Queue Routing:** An algorithm ensuring no question is left behind by sorting the moderation queue chronologically.
 * **Verification Promotion:** A one-click admin action (`Convert to FAQ`) that permanently elevates verified answers to the canonical library.
-* **Community Flagging (Reopen Flow):** Allows users to report incorrect answers, requiring a `reopenReason`, which sends the question back to the moderation queue.
+* **Administrative Reopen Flow:** Allows administrators to revert answered or closed questions back to reopened status, returning them to the moderation queue for peer correction.
 * **Failed Search Analytics:** Automatically logs queries that yield zero results, generating a hit-list for admins to create new content.
 
 ### ⚡ Real-Time & Reliability
@@ -84,7 +83,7 @@ AskSam was designed with a massive suite of features tailored for a perfect acad
 * **High-Availability Offline Mode:** The NestJS API gracefully falls back to a read-only `faqData.json` file if the primary MongoDB cluster crashes.
 
 ### 👤 User Engagement & Profiles
-* **Contribution Heatmaps:** GitHub-style visual charts tracking the frequency of a user's answers.
+* **Profile Activity Tracking:** Counters tracking questions asked, answers given, and verified FAQ counts.
 * **Personal Bookmarking:** A centralized tab for users to save and quickly reference important FAQs later.
 * **My Questions Dashboard:** A dedicated space tracking the live status (`open`, `answered`, `reopened`) of every query a student has submitted.
 
@@ -109,11 +108,9 @@ AskSam was designed with a massive suite of features tailored for a perfect acad
 <br/>
 <b>The Goal:</b> To capture detailed questions while preventing duplicates.
 
-* **Title & Description Inputs**: Users type their question. The form supports rich text and allows pasting image URLs for screenshots.
-* **Live Deflection Panel**: As the user types their title, the right sidebar automatically queries the database and says: *"Hey, are any of these FAQs what you're looking for?"*
-* **"Submit to Queue" Button**: 
-  * If the user is logged in, it posts the question to MongoDB with an `open` status.
-  * If the user is NOT logged in, a **Login Modal** smoothly pops up. Once they authenticate, the system remembers what they typed and posts it automatically.
+* **Title & Description Inputs**: Users type their question. The form supports details and category selection.
+* **Inline Duplicate Warning**: As the user types their title, the Ask page checks for duplicate FAQs and displays a warning card if a match is over 70% similar.
+* **"Submit to Queue" Button**: Posts the question to MongoDB with an `open` status. Access is protected so that only authenticated students can submit questions.
 </details>
 
 <details>
@@ -152,7 +149,7 @@ AskSam was designed with a massive suite of features tailored for a perfect acad
 <br/>
 <b>The Goal:</b> Keeping users engaged and allowing them to track their progress.
 
-* **Contribution Heatmap**: A visual chart showing how active the user has been in answering questions.
+* **Activity Metrics**: Performance stats counting questions asked, answers given, verified answers, and bookmarked FAQs.
 * **"My Bookmarks" Tab**: A list of FAQs the user has clicked the "Bookmark" icon on for quick reference later.
 * **"My Questions" Tab**: A dashboard showing the status (`open`, `answered`, `reopened`) of all the questions the user has asked.
 </details>
@@ -199,7 +196,6 @@ To ensure the community feels alive and responsive, AskSam utilizes a **WebSocke
 ## 🎨 UI & Design System
 
 * 🌿 **Sage Academic Palette**: A clean, scholarly layout built on Tailwind CSS v4 featuring deep sage greens (`#5E7A5A`), crisp whites (`#FFFFFF`), and warm sand/cream accent tones.
-* ✨ **Interactive Modals**: We heavily utilize overlay modals for authentication and profile checkpoints to prevent jarring page reloads or routing interruptions.
 
 ---
 
@@ -317,12 +313,12 @@ The core data structures powering AskSam in MongoDB:
 
 | Schema Name | File Location | Purpose & Key Fields |
 |:---|:---|:---|
-| **Question** | `question.schema.ts` | Tracks student submissions. Statuses: `open`, `answered`, `reopened`. Stores author ID, views, upvote/downvote counts, and references to community answers. |
-| **FAQ** | `faq.schema.ts` | The canonical library. Stores verified questions, confirmed answers, `categoryId`, `isPinned` flags, and an array of `unhelpfulFeedback` logs. |
-| **User** | `user.schema.ts` | Handles authentication. Stores email, hashed passwords, roles (`user`, `admin`), contribution stats, reputation points, and saved bookmark references. |
-| **Category** | `category.schema.ts` | The structural tracks (e.g., ViBe). Stores category names, slug URLs, and whether the category is `approved` by an admin. |
-| **Notification** | `notification.schema.ts` | Stores live event triggers for Socket.IO (e.g., "Your question was answered"). Tracks `isRead` status. |
-| **SearchAnalytics** | `search-analytics.schema.ts` | Logs search queries that yielded zero results, allowing admins to track content gaps. |
+| **Question** | `question.schema.ts` | Tracks student submissions. Statuses: `open`, `answered`, `reopened`, `closed`. Stores contributorName, contributorId, category, tags, and views. |
+| **FAQ** | `faq.schema.ts` | The canonical library. Stores verified questions, confirmed answers, category string, originalQuestionId, isPinned flag, and an array of unhelpfulFeedbacks (reason, userLabel). |
+| **User** | `user.schema.ts` | Handles authentication. Stores username, email, password, role (`student` or `admin`), following/followers arrays, and notificationPreferences. |
+| **Category** | `category.schema.ts` | The structural tracks (e.g., ViBe). Stores category names, and confirmation status. |
+| **Notification** | `notification.schema.ts` | Stores live event triggers for Socket.IO (e.g., "New Answer"). Tracks senderName and isRead status. |
+| **SearchAnalytics** | `search-analytics.schema.ts` | Logs search queries that yielded zero results, counting frequencies for content gap analysis. |
 
 ---
 
@@ -331,26 +327,26 @@ The core data structures powering AskSam in MongoDB:
 All API endpoints are prefixed with `/api`. Protected routes utilize NestJS JWT Guards (`Authorization: Bearer <token>`).
 
 ### Auth & User (`/api/auth`, `/api/users`)
-* `POST /api/auth/register` - Create new student account
+* `POST /api/auth/signup` - Create new student account
 * `POST /api/auth/login` - Authenticate and receive JWT
 * `GET /api/auth/me` - Get current session profile
-* `GET /api/users/:id/stats` - Fetch contribution heatmap & rep
+* `GET /api/users/:userId/stats` - Fetch contribution metrics for user profile
 
 ### Questions & Queue (`/api/questions`)
-* `POST /api/questions` - Submit a new question (deflection workflow)
-* `GET /api/questions/queue` - Fetch open/reopened questions (oldest-first)
-* `POST /api/questions/:id/answers` - Submit peer answer
-* `PATCH /api/questions/:id/vote` - Upvote or downvote
+* `POST /api/questions` - Submit a new question (checking duplicates in real-time)
+* `GET /api/questions/open` - Fetch open/reopened questions (oldest-first)
+* `PATCH /api/questions/:id/answer` - Submit peer answer
+* `PATCH /api/questions/:questionId/vote` - Upvote or downvote an answer or question
 
 ### FAQs (`/api/faqs`)
 * `GET /api/faqs` - Search and filter verified knowledge
-* `POST /api/faqs/convert` - **(Admin Only)** Extract verified answer and promote to FAQ
-* `POST /api/faqs/:id/feedback` - Log helpful/unhelpful metrics
+* `POST /api/questions/:id/convert-to-faq` - **(Admin Only)** Promote a verified answer to a canonical FAQ
+* `PATCH /api/faqs/:id/feedback` - Log helpful/unhelpful feedback with reasons
 
-### Platform Management (`/api/admin`, `/api/notifications`)
-* `GET /api/admin/failed-searches` - Fetch gap analytics
-* `PATCH /api/categories/:id/approve` - **(Admin Only)** Verify new category
-* `GET /api/notifications` - Fetch WebSocket notification history
+### Platform Management (`/api/admin`, `/api/notifications`, `/api/categories`)
+* `GET /api/admin/search/failed` - **(Admin Only)** Fetch search queries with zero results
+* `PATCH /api/categories/confirm` - **(Admin Only)** Approve suggested categories
+* `GET /api/notifications/:userId` - Fetch WebSocket notification history for a user
 
 ---
 
@@ -475,7 +471,7 @@ cd frontend && npm run build
 > Yes, the backend includes an automated fallback mechanism that serves static FAQ content in read-only mode from `faqData.json` when the database cannot be reached.
 
 **Q: How does the reopen flow work?**
-> If a verified answer is incorrect, the question author flags it. This flips the question's status back to `reopened` and lists it in the queue for peers to answer again, logging a `reopenReason`.
+> If an answer requires correction, an administrator can reopen the question from the Admin Panel. This flips its status back to `reopened` and places it back in the moderation queue for peers to resolve.
 
 **Q: How does a peer-reviewed answer elevate to a canonical FAQ?**
 > An administrator verifies the student-submitted answer and hits "Convert to FAQ". This prompts the NestJS API to push the question and verified answer directly into the permanent FAQ feed.
